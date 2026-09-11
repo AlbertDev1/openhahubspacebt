@@ -71,11 +71,12 @@ bluetoothctl --timeout 10 scan on
 
 If that lists nothing, stop here. Nothing else will work until it does.
 
-**3. Install this repository.**
+**3. Install this repository.** Drop `-b recon-tooling` once that branch is
+merged into `main`.
 
 ```sh
 cd /config
-git clone https://github.com/AlbertDev1/openhahubspacebt.git
+git clone -b recon-tooling https://github.com/AlbertDev1/openhahubspacebt.git
 cd openhahubspacebt
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-tools.txt
