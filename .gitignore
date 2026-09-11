@@ -1,0 +1,16 @@
+# Raw captures contain account identifiers, device IDs and possibly key material.
+# Sanitised payloads used by tests live in tests/fixtures/ and are committed.
+captures/
+*.log
+*.cfa
+btsnoop_hci*
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

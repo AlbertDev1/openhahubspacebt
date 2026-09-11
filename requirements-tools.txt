@@ -1,0 +1,6 @@
+# Recon tooling only. The Home Assistant integration will declare its own
+# requirements in custom_components/hubspace_bt/manifest.json.
+#
+# Tested against bleak 3.0.2. The 3.x line changed enough from 0.x that the
+# upper bound is deliberate.
+bleak>=3.0,<4
