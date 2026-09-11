@@ -73,6 +73,20 @@ Record the result here.
 
 No working decode exists publicly.
 
+## Where the range problem bites
+
+The Home Assistant host sits far from both fans, which advertise at -81 to
+-89 dBm. That is weak enough that connections may not hold, and the first
+attempt to enumerate timed out.
+
+This shapes the order of work. Evidence gathered from the **phone** does not
+have this problem, because the phone sits right under the fan when the app is
+used. So the Android capture described in `capture-guide.md` is the primary
+line of attack, and enumeration from Home Assistant is the supporting one.
+
+If enumeration keeps failing, moving the Home Assistant host near a fan for one
+session is worth more than fighting the radio.
+
 ## Open questions
 
 1. Which Bluetooth service and characteristics does the fan expose? Answer with
@@ -113,9 +127,11 @@ which means about fifteen dollars of hardware: an ESP32 paired with a CC1101
 module, since a plain 433 MHz transmitter cannot tune down to 304 MHz. The
 approach is well established for ceiling fans of this type.
 
-It was ruled out at planning time on the understanding that no remote existed
-and no hardware would be bought. Both premises are worth revisiting before
-spending serious effort on Bluetooth.
+**Decision: not taking this path.** It was raised once the remote turned up,
+with the trade-off stated plainly, and the choice is to stay on Bluetooth and
+buy no hardware. Recorded here so the option is visible to anyone reading later,
+and so nobody re-opens the argument. If the Bluetooth work dead-ends, this is
+the first fallback to reach for.
 
 ## Findings
 
