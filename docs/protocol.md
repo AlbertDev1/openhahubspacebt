@@ -109,9 +109,9 @@ a receiver in the fan canopy with no cloud involved.
 
 This matters because it is a second, completely independent local control path,
 and a far easier one than Bluetooth. It needs a radio Home Assistant can reach,
-which means roughly ten pounds of hardware: an ESP32 with a CC1101 module,
-since a plain 433 MHz transmitter cannot tune down to 304 MHz. The approach is
-well established for ceiling fans of this type.
+which means about fifteen dollars of hardware: an ESP32 paired with a CC1101
+module, since a plain 433 MHz transmitter cannot tune down to 304 MHz. The
+approach is well established for ceiling fans of this type.
 
 It was ruled out at planning time on the understanding that no remote existed
 and no hardware would be bought. Both premises are worth revisiting before
