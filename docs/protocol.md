@@ -89,15 +89,65 @@ No working decode exists publicly.
 6. What happens when two things try to connect at once, the phone and Home
    Assistant? Low Energy generally permits one central at a time.
 
+## The hardware
+
+**Home Decorators Collection Kensgrove II, 72 inch**, sold by Home Depot,
+powered by Hubspace. Model numbers run `N608-MBK` for matte black, `N608-MWH`
+white, `N608-CB` gold.
+
+- DC motor, 6 speeds, 8 blades, reversible.
+- Integrated LED with adjustable colour temperature, so the light has both a
+  brightness and a colour-temperature axis.
+- Two units on site.
+
+### It ships with a radio remote
+
+The Kensgrove II includes a handheld remote, and the Hubspace remote family it
+belongs to, such as the TR240B under FCC ID `2AQZU-18016`, transmits at
+**304.25 MHz**. That is plain sub-gigahertz RF, unencrypted, talking directly to
+a receiver in the fan canopy with no cloud involved.
+
+This matters because it is a second, completely independent local control path,
+and a far easier one than Bluetooth. It needs a radio Home Assistant can reach,
+which means roughly ten pounds of hardware: an ESP32 with a CC1101 module,
+since a plain 433 MHz transmitter cannot tune down to 304 MHz. The approach is
+well established for ceiling fans of this type.
+
+It was ruled out at planning time on the understanding that no remote existed
+and no hardware would be bought. Both premises are worth revisiting before
+spending serious effort on Bluetooth.
+
 ## Findings
 
 ### Advertisements
 
-_Nothing recorded yet. Run `tools/scan.py` beside a fan and again far from it._
+Scans taken on the Home Assistant host, which sits some distance from both fans.
 
-| Address | Name | Service UUIDs | Manufacturer data | Notes |
-| --- | --- | --- | --- | --- |
-| | | | | |
+Leading candidates, both reported by BlueZ as **public** addresses, so these are
+real hardware identities rather than privacy addresses:
+
+| Address | Prefix owner | Signal | Notes |
+| --- | --- | --- | --- |
+| `CC:DB:A7:2E:B8:72` | Espressif | -81 to -83 dBm | Two units, adjacent addresses |
+| `CC:DB:A7:2E:7A:62` | Espressif | -86 to -89 dBm | Intermittent, weakest in the house |
+
+Neither advertises a name or any service identifier. Two Espressif devices with
+near-adjacent addresses matches two fans bought together.
+
+Other unidentified public addresses, kept as fallbacks:
+
+| Address | Prefix owner | Notes |
+| --- | --- | --- |
+| `B0:E9:FE:51:D3:D9` | Woan Technology | Shenzhen contract manufacturer |
+| `C8:C9:EB:02:56:05` | unresolved | Advertises as `M203T_055602` |
+
+Ruled out: `94:51:DC:09:4A:02` advertises the literal name `ESP32`, which no
+shipped product does, so it is a hobby board. `C0:B1:E4:26:61:B5` is the
+strongest signal in the house but its prefix is unregistered, making it a random
+address.
+
+**Not yet confirmed by power cycling.** The identification still rests on
+inference. Cut power to one fan and re-run `tools/diff_scans.py` to settle it.
 
 ### Attribute table
 
