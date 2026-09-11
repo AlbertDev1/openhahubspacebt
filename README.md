@@ -30,6 +30,7 @@ ones: find the key, and re-implement the framing.
 | `tools/scan.py` | Find the fan among every Bluetooth advertiser nearby |
 | `tools/enumerate.py` | Dump a device's entire attribute table |
 | `tools/listen.py` | Subscribe to notifications and watch state change |
+| `tools/show_scan.py` | Print full advertisement payloads from a saved scan |
 | `tools/diff_scans.py` | Compare two scans to see what appeared or vanished |
 | `tools/btsnoop_parse.py` | Pull the attribute layer out of an Android capture |
 | `docs/protocol.md` | Living record of findings and dead ends |
