@@ -22,7 +22,15 @@ from typing import Any
 from bleak import BleakClient
 from bleak.uuids import uuidstr_to_str
 
-from common import hexdump, printable, save_json, setup_logging
+from common import (
+    ConnectFailed,
+    DeviceNotFound,
+    connected,
+    hexdump,
+    printable,
+    save_json,
+    setup_logging,
+)
 
 # Characteristics whose contents are identifying rather than interesting. We
 # still read them, because model and firmware strings pin down the hardware.
@@ -49,9 +57,20 @@ async def read_value(client: BleakClient, char: Any) -> dict[str, Any] | None:
     return {"hex": hexdump(data), "ascii": printable(data), "length": len(data)}
 
 
-async def dump(address: str, do_read: bool) -> dict[str, Any]:
-    logging.info("connecting to %s", address)
-    async with BleakClient(address) as client:
+async def dump(
+    address: str,
+    do_read: bool,
+    *,
+    scan_timeout: float,
+    connect_timeout: float,
+    retries: int,
+) -> dict[str, Any]:
+    async with connected(
+        address,
+        scan_timeout=scan_timeout,
+        connect_timeout=connect_timeout,
+        retries=retries,
+    ) as client:
         logging.info("connected, mtu=%s", getattr(client, "mtu_size", "unknown"))
         services: list[dict[str, Any]] = []
 
@@ -139,11 +158,29 @@ async def main() -> None:
         action="store_true",
         help="skip reading values, just map the structure",
     )
+    parser.add_argument(
+        "--scan-timeout",
+        type=float,
+        default=20.0,
+        help="how long to look for the device before giving up",
+    )
+    parser.add_argument("--connect-timeout", type=float, default=30.0)
+    parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
     setup_logging(args.verbose)
-    dumped = await dump(args.address, do_read=not args.no_read)
+    try:
+        dumped = await dump(
+            args.address,
+            do_read=not args.no_read,
+            scan_timeout=args.scan_timeout,
+            connect_timeout=args.connect_timeout,
+            retries=args.retries,
+        )
+    except (DeviceNotFound, ConnectFailed) as exc:
+        logging.error("%s", exc)
+        raise SystemExit(1) from None
     report(dumped)
     save_json(f"gatt-{args.address.replace(':', '')}", dumped)
 

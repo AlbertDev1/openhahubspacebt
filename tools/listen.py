@@ -25,10 +25,25 @@ from typing import Any
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
-from common import capture_path, hexdump, printable, setup_logging
+from common import (
+    ConnectFailed,
+    DeviceNotFound,
+    capture_path,
+    connected,
+    hexdump,
+    printable,
+    setup_logging,
+)
 
 
-async def listen(address: str, seconds: float | None) -> None:
+async def listen(
+    address: str,
+    seconds: float | None,
+    *,
+    scan_timeout: float = 20.0,
+    connect_timeout: float = 30.0,
+    retries: int = 3,
+) -> None:
     path = capture_path("notifications", ".jsonl")
     started = time.time()
     count = 0
@@ -60,8 +75,13 @@ async def listen(address: str, seconds: float | None) -> None:
                 f"{hexdump(payload)}"
             )
 
-        logging.info("connecting to %s", address)
-        async with BleakClient(address, disconnected_callback=on_disconnect) as client:
+        async with connected(
+            address,
+            scan_timeout=scan_timeout,
+            connect_timeout=connect_timeout,
+            retries=retries,
+            disconnected_callback=on_disconnect,
+        ) as client:
             subscribed = []
             for service in client.services:
                 for char in service.characteristics:
@@ -105,11 +125,24 @@ async def main() -> None:
         default=120.0,
         help="how long to listen, or 0 to run until disconnected",
     )
+    parser.add_argument("--scan-timeout", type=float, default=20.0)
+    parser.add_argument("--connect-timeout", type=float, default=30.0)
+    parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
     setup_logging(args.verbose)
-    await listen(args.address, args.seconds or None)
+    try:
+        await listen(
+            args.address,
+            args.seconds or None,
+            scan_timeout=args.scan_timeout,
+            connect_timeout=args.connect_timeout,
+            retries=args.retries,
+        )
+    except (DeviceNotFound, ConnectFailed) as exc:
+        logging.error("%s", exc)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
