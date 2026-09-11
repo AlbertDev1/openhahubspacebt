@@ -24,7 +24,14 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from common import hexdump, looks_interesting, save_json, setup_logging
+from common import (
+    address_kind,
+    address_type,
+    hexdump,
+    looks_interesting,
+    save_json,
+    setup_logging,
+)
 
 
 class Observation:
@@ -38,8 +45,11 @@ class Observation:
         self.service_data: dict[str, set[bytes]] = defaultdict(set)
         self.manufacturer_data: dict[int, set[bytes]] = defaultdict(set)
         self.tx_power: set[int] = set()
+        self.address_type: str | None = None
 
     def record(self, device: BLEDevice, adv: AdvertisementData) -> None:
+        if self.address_type is None:
+            self.address_type = address_type(device)
         if adv.local_name:
             self.names.add(adv.local_name)
         if device.name:
@@ -62,6 +72,7 @@ class Observation:
         return {
             "address": self.address,
             "names": sorted(self.names),
+            "address_type": self.address_type or address_kind(self.address),
             "packets": len(self.rssis),
             "rssi": {
                 "min": min(self.rssis),
@@ -121,19 +132,21 @@ def report(results: list[Observation]) -> None:
         return
 
     print()
-    print(f"{'address':<20} {'rssi':>6} {'pkts':>5}  name")
-    print("-" * 72)
+    print(f"{'address':<20} {'rssi':>6} {'pkts':>5} {'type':<16} name")
+    print("-" * 86)
     for obs in results:
         avg = f"{mean(obs.rssis):.0f}" if obs.rssis else "-"
         flag = "*" if looks_interesting(obs.best_name, {
             k: next(iter(v)) for k, v in obs.manufacturer_data.items()
         }) else " "
+        kind = obs.address_type or address_kind(obs.address)
         print(
-            f"{obs.address:<20} {avg:>6} {len(obs.rssis):>5} {flag} "
+            f"{obs.address:<20} {avg:>6} {len(obs.rssis):>5} {kind:<16}{flag} "
             f"{obs.best_name or '(no name)'}"
         )
     print()
     print("* = worth a closer look. Run tools/enumerate.py against its address.")
+    print("A rotating address is a phone or similar and is never the fan.")
 
 
 async def main() -> None:

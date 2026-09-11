@@ -65,6 +65,62 @@ def looks_interesting(name: str | None, manufacturer_data: dict[int, bytes]) -> 
     return any(len(v) >= 8 for v in manufacturer_data.values())
 
 
+# --- address types ----------------------------------------------------------
+#
+# Separating fixed devices from phones is most of the triage. Phones use
+# resolvable private addresses that rotate every few minutes, so an address
+# that survives two scans an hour apart belongs to something that stays put.
+
+
+def address_type(device: object) -> str | None:
+    """Ask the OS for the address type. BlueZ knows; other backends may not."""
+    details = getattr(device, "details", None)
+    if isinstance(details, dict):
+        props = details.get("props")
+        if isinstance(props, dict):
+            value = props.get("AddressType")
+            if isinstance(value, str):
+                return value
+    return None
+
+
+def top_bits(address: str) -> int | None:
+    """The two most significant bits of an address, which type a random one."""
+    try:
+        return int(address.split(":")[0], 16) >> 6
+    except (ValueError, IndexError):
+        return None
+
+
+def random_flavour(address: str) -> str:
+    """Which sort of random address this is. Only valid once you know it is one.
+
+    BlueZ reports an address as "random" without saying which kind, and the top
+    bits answer that reliably for an address already known to be random.
+    """
+    return "random-static" if top_bits(address) == 0b11 else "random-rotating"
+
+
+def address_kind(address: str) -> str:
+    """Guess the address type from its bits, for when the OS will not say.
+
+    Only one pattern is conclusive. A public address carries no type bits at
+    all, so it can begin with anything, and a guess of "static?" or "rotating?"
+    may really be a public address. Espressif's CC:DB:A7 prefix is exactly that
+    trap: the bits say random, the registry says Espressif.
+
+    Prefer address_type(), which asks the operating system, wherever possible.
+    """
+    top = top_bits(address)
+    if top is None:
+        return "unknown"
+    if top == 0b10:
+        return "public"          # no random address can start with these bits
+    if top == 0b11:
+        return "static?"         # random-static, or a public address
+    return "rotating?"           # resolvable or not, or a public address
+
+
 # --- connecting -------------------------------------------------------------
 #
 # BlueZ will not connect to a bare address it does not currently know about,
@@ -74,10 +130,13 @@ def looks_interesting(name: str | None, manufacturer_data: dict[int, bytes]) -> 
 
 import asyncio  # noqa: E402
 from contextlib import asynccontextmanager  # noqa: E402
-from typing import AsyncIterator, Callable  # noqa: E402
+from typing import TYPE_CHECKING, AsyncIterator, Callable  # noqa: E402
 
-from bleak import BleakClient, BleakScanner  # noqa: E402
-from bleak.backends.device import BLEDevice  # noqa: E402
+# bleak is imported where it is used, so that the helpers above stay usable
+# from tools that need no radio, such as diff_scans.py.
+if TYPE_CHECKING:
+    from bleak import BleakClient
+    from bleak.backends.device import BLEDevice
 
 
 class DeviceNotFound(Exception):
@@ -88,7 +147,9 @@ class ConnectFailed(Exception):
     """The device was found but would not accept a connection."""
 
 
-async def resolve_device(address: str, timeout: float = 15.0) -> BLEDevice:
+async def resolve_device(address: str, timeout: float = 15.0) -> "BLEDevice":
+    from bleak import BleakScanner
+
     logging.info("looking for %s (up to %.0fs)", address, timeout)
     device = await BleakScanner.find_device_by_address(address, timeout=timeout)
     if device is None:
@@ -107,9 +168,11 @@ async def connected(
     scan_timeout: float = 15.0,
     connect_timeout: float = 30.0,
     retries: int = 3,
-    disconnected_callback: Callable[[BleakClient], None] | None = None,
-) -> AsyncIterator[BleakClient]:
+    disconnected_callback: Callable[["BleakClient"], None] | None = None,
+) -> AsyncIterator["BleakClient"]:
     """Connect to a device, retrying, and always disconnect on the way out."""
+    from bleak import BleakClient
+
     device = await resolve_device(address, scan_timeout)
 
     last_error: Exception | None = None

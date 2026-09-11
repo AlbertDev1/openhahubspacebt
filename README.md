@@ -30,6 +30,7 @@ ones: find the key, and re-implement the framing.
 | `tools/scan.py` | Find the fan among every Bluetooth advertiser nearby |
 | `tools/enumerate.py` | Dump a device's entire attribute table |
 | `tools/listen.py` | Subscribe to notifications and watch state change |
+| `tools/diff_scans.py` | Compare two scans to see what appeared or vanished |
 | `tools/btsnoop_parse.py` | Pull the attribute layer out of an Android capture |
 | `docs/protocol.md` | Living record of findings and dead ends |
 | `docs/capture-guide.md` | How to capture Bluetooth traffic from the app |
@@ -92,6 +93,20 @@ absent.
 .venv/bin/python tools/scan.py --seconds 30 --label far
 ```
 
+**4b. Prove which one it is.** Names and manufacturer prefixes are guesswork.
+Cutting power is proof. Scan with the fan powered, kill it at the wall switch or
+breaker, wait a minute, then scan again:
+
+```sh
+.venv/bin/python tools/scan.py --seconds 45 --label powered
+# cut power to the fan, wait
+.venv/bin/python tools/scan.py --seconds 45 --label unpowered
+.venv/bin/python tools/diff_scans.py captures/*-powered.json captures/*-unpowered.json
+```
+
+Whatever stopped advertising is the fan. Repeat once to rule out devices that
+happened to go quiet at the same moment.
+
 **5. Map it.** Once you have an address, dump everything it exposes:
 
 ```sh
@@ -144,6 +159,7 @@ install.
 python -m venv .venv
 .venv/bin/pip install -r requirements-tools.txt
 python tests/test_btsnoop_parse.py     # no pytest needed
+python tests/test_scan_analysis.py
 ```
 
 Tested against Python 3.12 and bleak 3.0.2.
